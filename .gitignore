@@ -1,0 +1,66 @@
+# =========================
+# Python / Django
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+wound/
+venv/
+env/
+.venv/
+
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Django local database
+*.sqlite3
+db.sqlite3
+
+# Uploaded/generated media
+backend/media/
+media/
+backend/wound_images/
+
+# Django generated static files
+backend/staticfiles/
+staticfiles/
+
+# =========================
+# React / Node
+# =========================
+node_modules/
+frontend/node_modules/
+
+# React production build
+frontend/dist/
+frontend/build/
+
+# Local frontend environment files
+frontend/.env
+frontend/.env.*
+!frontend/.env.example
+
+# =========================
+# IDE / OS files
+# =========================
+.vscode/
+.idea/
+
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python tooling/cache
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
