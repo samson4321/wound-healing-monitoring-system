@@ -66,6 +66,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 
     # Allows React frontend to communicate with Django
     "corsheaders.middleware.CorsMiddleware",
@@ -178,6 +179,7 @@ USE_TZ = True
 # --------------------------------------------------
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
 # --------------------------------------------------
