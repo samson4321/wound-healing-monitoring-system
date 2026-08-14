@@ -21,7 +21,6 @@ load_dotenv(BASE_DIR / ".env")
 # --------------------------------------------------
 # SECURITY
 # --------------------------------------------------
-
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 
 DEBUG = os.getenv(
@@ -178,7 +177,7 @@ USE_TZ = True
 # STATIC FILES
 # --------------------------------------------------
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 
