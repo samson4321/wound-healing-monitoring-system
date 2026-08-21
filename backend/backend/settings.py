@@ -121,8 +121,6 @@ WSGI_APPLICATION = "backend.wsgi.application"
 # DATABASE
 # --------------------------------------------------
 
-
-
 import dj_database_url
 
 DATABASES = {
