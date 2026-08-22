@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -23,7 +24,8 @@ function DoctorPatients() {
         }
 
         const response = await fetch(
-          "http://127.0.0.1:8000/api/patients/",
+          `${API_BASE_URL}/api/patients/`,
+
           {
             headers: {
               Authorization: `Token ${token}`,

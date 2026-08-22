@@ -11,7 +11,11 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-import { apiFetch, clearAuth } from "../api";
+import {
+  API_BASE_URL,
+  apiFetch,
+  clearAuth,
+} from "../api";
 
 function PatientProgress() {
   const { patientId } = useParams();
@@ -31,26 +35,36 @@ function PatientProgress() {
       "Loading patient progress..."
     );
 
-  const [reviewComments, setReviewComments] =
-    useState({});
+  const [
+    reviewComments,
+    setReviewComments,
+  ] = useState({});
 
-  const [reviewMessages, setReviewMessages] =
-    useState({});
+  const [
+    reviewMessages,
+    setReviewMessages,
+  ] = useState({});
 
-  const [reviewLoading, setReviewLoading] =
-    useState({});
+  const [
+    reviewLoading,
+    setReviewLoading,
+  ] = useState({});
+
+  // --------------------------------------------------
+  // LOAD PATIENT PROGRESS
+  // --------------------------------------------------
 
   useEffect(() => {
     async function loadPatientProgress() {
       try {
         const patientResponse =
           await apiFetch(
-            "http://127.0.0.1:8000/api/patients/"
+            `${API_BASE_URL}/api/patients/`
           );
 
         const assessmentResponse =
           await apiFetch(
-            "http://127.0.0.1:8000/api/assessments/"
+            `${API_BASE_URL}/api/assessments/`
           );
 
         if (
@@ -147,13 +161,23 @@ function PatientProgress() {
     loadPatientProgress();
   }, [patientId, navigate]);
 
+  // --------------------------------------------------
+  // BACK BUTTON
+  // --------------------------------------------------
+
   function handleBack() {
     if (userRole === "DOCTOR") {
-      navigate("/doctor/patients");
+      navigate(
+        "/doctor/patients"
+      );
     } else {
       navigate("/patients");
     }
   }
+
+  // --------------------------------------------------
+  // CALCULATE PIXEL AREA CHANGE
+  // --------------------------------------------------
 
   function calculatePixelAreaChange(
     currentArea,
@@ -189,6 +213,10 @@ function PatientProgress() {
     );
   }
 
+  // --------------------------------------------------
+  // CHANGE DESCRIPTION
+  // --------------------------------------------------
+
   function getChangeDescription(
     change
   ) {
@@ -209,6 +237,10 @@ function PatientProgress() {
 
     return `${absoluteChange}% change — approximately stable`;
   }
+
+  // --------------------------------------------------
+  // MEASUREMENT SOURCE LABEL
+  // --------------------------------------------------
 
   function getMeasurementSourceLabel(
     source
@@ -237,6 +269,10 @@ function PatientProgress() {
     return "Unknown / legacy";
   }
 
+  // --------------------------------------------------
+  // DOCTOR REVIEW
+  // --------------------------------------------------
+
   async function handleSubmitReview(
     assessmentId
   ) {
@@ -251,6 +287,7 @@ function PatientProgress() {
       setReviewMessages(
         (previous) => ({
           ...previous,
+
           [assessmentId]:
             "Please enter a doctor comment before submitting.",
         })
@@ -262,6 +299,7 @@ function PatientProgress() {
     setReviewLoading(
       (previous) => ({
         ...previous,
+
         [assessmentId]: true,
       })
     );
@@ -269,6 +307,7 @@ function PatientProgress() {
     setReviewMessages(
       (previous) => ({
         ...previous,
+
         [assessmentId]: "",
       })
     );
@@ -276,13 +315,15 @@ function PatientProgress() {
     try {
       const response =
         await apiFetch(
-          `http://127.0.0.1:8000/api/assessments/${assessmentId}/review/`,
+          `${API_BASE_URL}/api/assessments/${assessmentId}/review/`,
           {
             method: "PATCH",
+
             headers: {
               "Content-Type":
                 "application/json",
             },
+
             body: JSON.stringify({
               doctor_comment:
                 doctorComment,
@@ -290,7 +331,9 @@ function PatientProgress() {
           }
         );
 
-      if (response.status === 401) {
+      if (
+        response.status === 401
+      ) {
         clearAuth();
 
         navigate("/login", {
@@ -307,6 +350,7 @@ function PatientProgress() {
         setReviewMessages(
           (previous) => ({
             ...previous,
+
             [assessmentId]:
               data.message ||
               "Could not save doctor review.",
@@ -317,7 +361,9 @@ function PatientProgress() {
       }
 
       setAssessments(
-        (previousAssessments) =>
+        (
+          previousAssessments
+        ) =>
           previousAssessments.map(
             (assessment) =>
               assessment.id ===
@@ -330,6 +376,7 @@ function PatientProgress() {
       setReviewComments(
         (previous) => ({
           ...previous,
+
           [assessmentId]:
             data.doctor_comment ||
             "",
@@ -339,6 +386,7 @@ function PatientProgress() {
       setReviewMessages(
         (previous) => ({
           ...previous,
+
           [assessmentId]:
             "Review saved successfully.",
         })
@@ -352,6 +400,7 @@ function PatientProgress() {
       setReviewMessages(
         (previous) => ({
           ...previous,
+
           [assessmentId]:
             "Could not connect to the server.",
         })
@@ -360,11 +409,16 @@ function PatientProgress() {
       setReviewLoading(
         (previous) => ({
           ...previous,
+
           [assessmentId]: false,
         })
       );
     }
   }
+
+  // --------------------------------------------------
+  // FORMAT REVIEW DATE
+  // --------------------------------------------------
 
   function formatReviewedAt(
     value
@@ -387,6 +441,10 @@ function PatientProgress() {
     return date.toLocaleString();
   }
 
+  // --------------------------------------------------
+  // CHART DATA
+  // --------------------------------------------------
+
   const comparableAssessments =
     assessments.filter(
       (assessment) =>
@@ -401,9 +459,12 @@ function PatientProgress() {
   const chartData =
     comparableAssessments.map(
       (assessment, index) => ({
-        assessment: `A${index + 1}`,
+        assessment:
+          `A${index + 1}`,
+
         date:
           assessment.assessment_date,
+
         area: Number(
           assessment.wound_area_pixels
         ),
@@ -425,7 +486,8 @@ function PatientProgress() {
       <button
         onClick={handleBack}
         style={{
-          marginBottom: "25px",
+          marginBottom:
+            "25px",
         }}
       >
         ← Back to Patients
@@ -435,14 +497,25 @@ function PatientProgress() {
         <p>{message}</p>
       )}
 
+      {/* -------------------------------- */}
+      {/* PATIENT INFORMATION */}
+      {/* -------------------------------- */}
+
       {!message && patient && (
         <div
           style={{
             border:
               "1px solid #ccc",
-            borderRadius: "10px",
-            padding: "20px",
-            marginBottom: "30px",
+
+            borderRadius:
+              "10px",
+
+            padding:
+              "20px",
+
+            marginBottom:
+              "30px",
+
             backgroundColor:
               "white",
           }}
@@ -482,7 +555,8 @@ function PatientProgress() {
             {assessments.length}
           </p>
 
-          {userRole === "NURSE" && (
+          {userRole ===
+            "NURSE" && (
             <button
               onClick={() =>
                 navigate(
@@ -494,7 +568,8 @@ function PatientProgress() {
             </button>
           )}
 
-          {userRole === "DOCTOR" && (
+          {userRole ===
+            "DOCTOR" && (
             <p
               style={{
                 marginTop:
@@ -504,7 +579,8 @@ function PatientProgress() {
               Doctor view —
               assessment records are
               read-only except for
-              clinical review comments.
+              clinical review
+              comments.
             </p>
           )}
         </div>
@@ -517,30 +593,40 @@ function PatientProgress() {
           </p>
         )}
 
+      {/* -------------------------------- */}
+      {/* PROGRESS CHART */}
+      {/* -------------------------------- */}
+
       {!message &&
         patient &&
-        chartData.length > 0 && (
+        chartData.length >
+          0 && (
           <div
             style={{
               border:
                 "1px solid #ccc",
+
               borderRadius:
                 "10px",
-              padding: "20px",
+
+              padding:
+                "20px",
+
               marginBottom:
                 "30px",
+
               backgroundColor:
                 "white",
             }}
           >
             <h2>
-              Segmented Wound Area
-              Trend
+              Segmented Wound
+              Area Trend
             </h2>
 
             <p>
-              Comparable measurements
-              from{" "}
+              Comparable
+              measurements from{" "}
               <strong>
                 baseline-v4-grabcut
               </strong>{" "}
@@ -548,21 +634,28 @@ function PatientProgress() {
             </p>
 
             <p>
-              Experimental image-space
-              measurement in pixels².
-              This is not yet calibrated
-              to cm².
+              Experimental
+              image-space
+              measurement in
+              pixels². This is not
+              yet calibrated to
+              cm².
             </p>
 
             <div
               style={{
-                width: "100%",
-                height: "350px",
+                width:
+                  "100%",
+
+                height:
+                  "350px",
               }}
             >
               <ResponsiveContainer>
                 <LineChart
-                  data={chartData}
+                  data={
+                    chartData
+                  }
                 >
                   <CartesianGrid
                     strokeDasharray="3 3"
@@ -600,7 +693,9 @@ function PatientProgress() {
                   <Line
                     type="monotone"
                     dataKey="area"
-                    strokeWidth={2}
+                    strokeWidth={
+                      2
+                    }
                     dot
                   />
                 </LineChart>
@@ -611,11 +706,13 @@ function PatientProgress() {
 
       {!message &&
         patient &&
-        chartData.length === 0 && (
+        chartData.length ===
+          0 && (
           <p>
-            No comparable GrabCut
-            measurements are available
-            for the progress chart yet.
+            No comparable
+            GrabCut measurements
+            are available for the
+            progress chart yet.
           </p>
         )}
 
@@ -624,11 +721,15 @@ function PatientProgress() {
         assessments.length ===
           0 && (
           <p>
-            No wound assessments have
-            been recorded for this
-            patient.
+            No wound assessments
+            have been recorded
+            for this patient.
           </p>
         )}
+
+      {/* -------------------------------- */}
+      {/* ASSESSMENTS */}
+      {/* -------------------------------- */}
 
       {!message &&
         assessments.map(
@@ -667,12 +768,16 @@ function PatientProgress() {
                 style={{
                   border:
                     "1px solid #ccc",
+
                   borderRadius:
                     "10px",
+
                   padding:
                     "25px",
+
                   marginBottom:
                     "30px",
+
                   backgroundColor:
                     "white",
                 }}
@@ -724,7 +829,8 @@ function PatientProgress() {
 
                 <p>
                   <strong>
-                    Measurement Source:
+                    Measurement
+                    Source:
                   </strong>{" "}
                   {getMeasurementSourceLabel(
                     assessment.measurement_source
@@ -743,7 +849,8 @@ function PatientProgress() {
 
                 <p>
                   <strong>
-                    Calibrated Wound Area:
+                    Calibrated Wound
+                    Area:
                   </strong>{" "}
                   {assessment.wound_area !=
                   null
@@ -755,7 +862,8 @@ function PatientProgress() {
                   <>
                     <p>
                       <strong>
-                        Previous Raw Wound Area:
+                        Previous Raw
+                        Wound Area:
                       </strong>{" "}
                       {previousAssessment.wound_area_pixels !=
                       null
@@ -765,7 +873,8 @@ function PatientProgress() {
 
                     <p>
                       <strong>
-                        Segmented Area Change:
+                        Segmented Area
+                        Change:
                       </strong>{" "}
                       {!sameModelAsPrevious
                         ? "Not comparable — different analysis model versions"
@@ -779,19 +888,29 @@ function PatientProgress() {
                 {!previousAssessment && (
                   <p>
                     <strong>
-                      Progress Comparison:
+                      Progress
+                      Comparison:
                     </strong>{" "}
-                    Baseline assessment
+                    Baseline
+                    assessment
                   </p>
                 )}
+
+                {/* -------------------------- */}
+                {/* IMAGES */}
+                {/* -------------------------- */}
 
                 <div
                   style={{
                     display:
                       "flex",
-                    gap: "25px",
+
+                    gap:
+                      "25px",
+
                     flexWrap:
                       "wrap",
+
                     marginTop:
                       "25px",
                   }}
@@ -799,14 +918,16 @@ function PatientProgress() {
                   {assessment.wound_image && (
                     <div
                       style={{
-                        flex: "1",
+                        flex:
+                          "1",
+
                         minWidth:
                           "300px",
                       }}
                     >
                       <h3>
-                        Original Wound
-                        Image
+                        Original
+                        Wound Image
                       </h3>
 
                       <img
@@ -817,10 +938,13 @@ function PatientProgress() {
                         style={{
                           width:
                             "100%",
+
                           maxWidth:
                             "450px",
+
                           borderRadius:
                             "8px",
+
                           border:
                             "1px solid #ccc",
                         }}
@@ -831,7 +955,9 @@ function PatientProgress() {
                   {assessment.wound_mask && (
                     <div
                       style={{
-                        flex: "1",
+                        flex:
+                          "1",
+
                         minWidth:
                           "300px",
                       }}
@@ -849,10 +975,13 @@ function PatientProgress() {
                         style={{
                           width:
                             "100%",
+
                           maxWidth:
                             "450px",
+
                           borderRadius:
                             "8px",
+
                           border:
                             "1px solid #ccc",
                         }}
@@ -861,12 +990,18 @@ function PatientProgress() {
                   )}
                 </div>
 
+                {/* -------------------------- */}
+                {/* DOCTOR REVIEW */}
+                {/* -------------------------- */}
+
                 <div
                   style={{
                     marginTop:
                       "25px",
+
                     borderTop:
                       "1px solid #ddd",
+
                     paddingTop:
                       "20px",
                   }}
@@ -916,7 +1051,8 @@ function PatientProgress() {
                     <>
                       <label>
                         <strong>
-                          Clinical Comment
+                          Clinical
+                          Comment
                         </strong>
                       </label>
 
@@ -937,6 +1073,7 @@ function PatientProgress() {
                               previous
                             ) => ({
                               ...previous,
+
                               [assessment.id]:
                                 event
                                   .target
@@ -947,10 +1084,13 @@ function PatientProgress() {
                         style={{
                           width:
                             "100%",
+
                           maxWidth:
                             "700px",
+
                           marginTop:
                             "8px",
+
                           padding:
                             "10px",
                         }}

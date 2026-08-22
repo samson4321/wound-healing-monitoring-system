@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -25,7 +26,7 @@ function NurseDashboard() {
         }
 
         const patientResponse = await fetch(
-          "http://127.0.0.1:8000/api/patients/",
+          `${API_BASE_URL}/api/patients/`,
           {
             headers: {
               Authorization: `Token ${token}`,
@@ -34,7 +35,7 @@ function NurseDashboard() {
         );
 
         const assessmentResponse = await fetch(
-          "http://127.0.0.1:8000/api/assessments/",
+          `${API_BASE_URL}/api/assessments/`,
           {
             headers: {
               Authorization: `Token ${token}`,

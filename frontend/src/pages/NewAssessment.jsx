@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -89,7 +90,7 @@ function NewAssessment() {
 
       // Send assessment to Django
       const response = await fetch(
-        "http://127.0.0.1:8000/api/assessments/",
+        `${API_BASE_URL}/api/assessments/`,
         {
           method: "POST",
 

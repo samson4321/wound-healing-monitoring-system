@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -41,7 +42,7 @@ function AssessmentHistory() {
 
         const assessmentResponse =
           await fetch(
-            "http://127.0.0.1:8000/api/assessments/",
+            `${API_BASE_URL}/api/assessments/`,
             {
               headers,
             }
@@ -49,7 +50,7 @@ function AssessmentHistory() {
 
         const patientResponse =
           await fetch(
-            "http://127.0.0.1:8000/api/patients/",
+            `${API_BASE_URL}/api/patients/`,
             {
               headers,
             }

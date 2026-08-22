@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import "../App.css";
@@ -40,14 +41,12 @@ function Register() {
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:8000/api/accounts/register/",
+        `${API_BASE_URL}/api/accounts/register/`,
         {
           method: "POST",
-
           headers: {
             "Content-Type": "application/json",
           },
-
           body: JSON.stringify(formData),
         }
       );
@@ -82,15 +81,19 @@ function Register() {
           setMessage(`Staff ID: ${data.staff_id[0]}`);
         } else if (data.email) {
           setMessage(`Email: ${data.email[0]}`);
+        } else if (data.message) {
+          setMessage(data.message);
         } else {
-          setMessage("Registration failed. Please check your information.");
+          setMessage(
+            "Registration failed. Please check your information."
+          );
         }
       }
     } catch (error) {
       console.error("Connection error:", error);
 
       setMessage(
-        "Could not connect to the Django server. Make sure the backend is running."
+        "Could not connect to the server. Please try again."
       );
     } finally {
       setLoading(false);
@@ -100,13 +103,11 @@ function Register() {
   return (
     <div className="login-page">
       <div className="login-card">
-
         <h1>Wound Healing Monitoring System</h1>
 
         <h2>Staff Registration</h2>
 
         <form onSubmit={handleSubmit}>
-
           <div className="form-group">
             <label>Username</label>
 
@@ -118,7 +119,6 @@ function Register() {
               required
             />
           </div>
-
 
           <div className="form-group">
             <label>First Name</label>
@@ -132,7 +132,6 @@ function Register() {
             />
           </div>
 
-
           <div className="form-group">
             <label>Last Name</label>
 
@@ -144,7 +143,6 @@ function Register() {
               required
             />
           </div>
-
 
           <div className="form-group">
             <label>Email</label>
@@ -158,7 +156,6 @@ function Register() {
             />
           </div>
 
-
           <div className="form-group">
             <label>Password</label>
 
@@ -170,7 +167,6 @@ function Register() {
               required
             />
           </div>
-
 
           <div className="form-group">
             <label>Role</label>
@@ -190,7 +186,6 @@ function Register() {
             </select>
           </div>
 
-
           <div className="form-group">
             <label>Staff ID</label>
 
@@ -202,7 +197,6 @@ function Register() {
               required
             />
           </div>
-
 
           <div className="form-group">
             <label>Department</label>
@@ -216,7 +210,6 @@ function Register() {
             />
           </div>
 
-
           <button
             className="login-button"
             type="submit"
@@ -224,7 +217,6 @@ function Register() {
           >
             {loading ? "Registering..." : "Register"}
           </button>
-
 
           {message && (
             <p
@@ -237,7 +229,6 @@ function Register() {
             </p>
           )}
 
-
           <p
             style={{
               textAlign: "center",
@@ -245,14 +236,9 @@ function Register() {
             }}
           >
             Already have an account?{" "}
-
-            <Link to="/login">
-              Login
-            </Link>
+            <Link to="/login">Login</Link>
           </p>
-
         </form>
-
       </div>
     </div>
   );

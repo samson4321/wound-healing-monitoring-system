@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../api";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -43,7 +44,7 @@ function AddPatient() {
       }
 
       const response = await fetch(
-        "http://127.0.0.1:8000/api/patients/",
+        `${API_BASE_URL}/api/patients/`,
         {
           method: "POST",
           headers: {
