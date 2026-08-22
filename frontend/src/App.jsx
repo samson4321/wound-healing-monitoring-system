@@ -10,6 +10,8 @@ import Register from "./pages/Register";
 
 import NurseDashboard from "./pages/NurseDashboard";
 import DoctorDashboard from "./pages/DoctorDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+
 import DoctorPatients from "./pages/DoctorPatients";
 
 import Patients from "./pages/Patients";
@@ -178,6 +180,23 @@ function App() {
               allowedRole="DOCTOR"
             >
               <AssessmentHistory />
+            </ProtectedRoute>
+          }
+        />
+
+
+        {/* ========================= */}
+        {/* ADMIN ROUTES */}
+        {/* ========================= */}
+
+        {/* Admin Dashboard */}
+        <Route
+          path="/admin/dashboard"
+          element={
+            <ProtectedRoute
+              allowedRole="ADMIN"
+            >
+              <AdminDashboard />
             </ProtectedRoute>
           }
         />
