@@ -207,8 +207,8 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "https://wound-healing-frontend.onrender.com",
 ]
-
 
 # --------------------------------------------------
 # DJANGO REST FRAMEWORK
