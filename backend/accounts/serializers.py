@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
+
 from .models import StaffProfile
 
 
@@ -37,16 +38,38 @@ class RegisterSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        role = validated_data.pop("role")
-        staff_id = validated_data.pop("staff_id")
-        department = validated_data.pop("department", "")
+        role = validated_data.pop(
+            "role"
+        )
+
+        staff_id = validated_data.pop(
+            "staff_id"
+        )
+
+        department = validated_data.pop(
+            "department",
+            ""
+        )
 
         user = User.objects.create_user(
-            username=validated_data["username"],
-            first_name=validated_data.get("first_name", ""),
-            last_name=validated_data.get("last_name", ""),
-            email=validated_data.get("email", ""),
-            password=validated_data["password"],
+            username=validated_data[
+                "username"
+            ],
+            first_name=validated_data.get(
+                "first_name",
+                ""
+            ),
+            last_name=validated_data.get(
+                "last_name",
+                ""
+            ),
+            email=validated_data.get(
+                "email",
+                ""
+            ),
+            password=validated_data[
+                "password"
+            ],
         )
 
         StaffProfile.objects.create(
@@ -60,9 +83,51 @@ class RegisterSerializer(serializers.ModelSerializer):
         return user
 
 
-class LoginSerializer(serializers.Serializer):
+class LoginSerializer(
+    serializers.Serializer
+):
     username = serializers.CharField()
 
     password = serializers.CharField(
         write_only=True
     )
+
+
+class StaffProfileSerializer(
+    serializers.ModelSerializer
+):
+    username = serializers.CharField(
+        source="user.username",
+        read_only=True,
+    )
+
+    first_name = serializers.CharField(
+        source="user.first_name",
+        read_only=True,
+    )
+
+    last_name = serializers.CharField(
+        source="user.last_name",
+        read_only=True,
+    )
+
+    email = serializers.EmailField(
+        source="user.email",
+        read_only=True,
+    )
+
+    class Meta:
+        model = StaffProfile
+
+        fields = [
+            "id",
+            "username",
+            "first_name",
+            "last_name",
+            "email",
+            "role",
+            "staff_id",
+            "department",
+            "is_approved",
+            "created_at",
+        ]
