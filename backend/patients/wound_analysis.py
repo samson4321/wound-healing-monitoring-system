@@ -1,9 +1,12 @@
 import os
+
 import cv2
 import numpy as np
 
 
 MODEL_VERSION = "baseline-v4-grabcut"
+
+MAX_DIMENSION = 1200
 
 
 def failed_result():
@@ -25,60 +28,154 @@ def analyze_wound_image(image_path):
 
     Strategy:
     1. Load the wound image.
-    2. Create a central rectangle where the wound is likely located.
-    3. Use GrabCut to separate foreground from background.
-    4. Clean the result.
-    5. Keep the most plausible connected wound region.
-    6. Save the mask.
-    7. Return raw pixel area only.
+    2. Resize large images to reduce memory and processing time.
+    3. Create a central rectangle where the wound is likely located.
+    4. Use GrabCut to separate foreground from background.
+    5. Clean the result.
+    6. Keep the most plausible connected wound region.
+    7. Save the mask.
+    8. Return estimated raw pixel area.
 
     Real cm² measurement still requires calibration.
     """
 
+    # --------------------------------------------------
+    # 1. LOAD IMAGE
+    # --------------------------------------------------
+
     image = cv2.imread(image_path)
 
     if image is None:
-        print("WOUND ANALYSIS: Could not read image.")
+        print(
+            "WOUND ANALYSIS: Could not read image."
+        )
+
         return failed_result()
 
-    height, width = image.shape[:2]
+    original_height, original_width = (
+        image.shape[:2]
+    )
 
     print(
-        f"WOUND ANALYSIS: image size = {width} x {height}"
+        "WOUND ANALYSIS: "
+        f"original image size = "
+        f"{original_width} x "
+        f"{original_height}"
     )
 
     # --------------------------------------------------
-    # 1. INITIAL GRABCUT MASK
+    # 2. RESIZE LARGE IMAGES
+    # --------------------------------------------------
+    #
+    # Large phone images can use too much RAM during
+    # GrabCut on small Render instances.
+    #
+    # We therefore analyze a smaller copy.
+    # --------------------------------------------------
+
+    scale = min(
+        1.0,
+        MAX_DIMENSION
+        / max(
+            original_width,
+            original_height,
+        )
+    )
+
+    if scale < 1.0:
+        width = max(
+            1,
+            int(
+                original_width
+                * scale
+            ),
+        )
+
+        height = max(
+            1,
+            int(
+                original_height
+                * scale
+            ),
+        )
+
+        image = cv2.resize(
+            image,
+            (
+                width,
+                height,
+            ),
+            interpolation=cv2.INTER_AREA,
+        )
+
+        print(
+            "WOUND ANALYSIS: "
+            f"resized image to "
+            f"{width} x {height}"
+        )
+
+    else:
+        height, width = (
+            original_height,
+            original_width,
+        )
+
+        print(
+            "WOUND ANALYSIS: "
+            "resize not required"
+        )
+
+    # --------------------------------------------------
+    # 3. INITIAL GRABCUT MASK
     # --------------------------------------------------
 
     grabcut_mask = np.zeros(
-        (height, width),
-        dtype=np.uint8
+        (
+            height,
+            width,
+        ),
+        dtype=np.uint8,
     )
 
     background_model = np.zeros(
-        (1, 65),
-        np.float64
+        (
+            1,
+            65,
+        ),
+        np.float64,
     )
 
     foreground_model = np.zeros(
-        (1, 65),
-        np.float64
+        (
+            1,
+            65,
+        ),
+        np.float64,
     )
 
     # --------------------------------------------------
-    # 2. DEFINE INITIAL REGION
+    # 4. DEFINE INITIAL REGION
     # --------------------------------------------------
     #
     # For now we assume the wound is reasonably central
     # in the image.
     # --------------------------------------------------
 
-    rect_x = int(width * 0.20)
-    rect_y = int(height * 0.15)
+    rect_x = int(
+        width * 0.20
+    )
 
-    rect_width = int(width * 0.60)
-    rect_height = int(height * 0.70)
+    rect_y = int(
+        height * 0.15
+    )
+
+    rect_width = int(
+        width * 0.60
+    )
+
+    rect_height = int(
+        height * 0.70
+    )
 
     rectangle = (
         rect_x,
@@ -88,7 +185,7 @@ def analyze_wound_image(image_path):
     )
 
     # --------------------------------------------------
-    # 3. RUN GRABCUT
+    # 5. RUN GRABCUT
     # --------------------------------------------------
 
     try:
@@ -99,13 +196,16 @@ def analyze_wound_image(image_path):
             background_model,
             foreground_model,
             5,
-            cv2.GC_INIT_WITH_RECT
+            cv2.GC_INIT_WITH_RECT,
         )
+
     except cv2.error as error:
         print(
-            "WOUND ANALYSIS: GrabCut failed:",
-            error
+            "WOUND ANALYSIS: "
+            "GrabCut failed:",
+            error,
         )
+
         return failed_result()
 
     # GrabCut output labels:
@@ -115,83 +215,113 @@ def analyze_wound_image(image_path):
     # 3 = probable foreground
 
     binary_mask = np.where(
-        (grabcut_mask == cv2.GC_FGD)
+        (
+            grabcut_mask
+            == cv2.GC_FGD
+        )
         |
-        (grabcut_mask == cv2.GC_PR_FGD),
+        (
+            grabcut_mask
+            == cv2.GC_PR_FGD
+        ),
         255,
-        0
-    ).astype(np.uint8)
+        0,
+    ).astype(
+        np.uint8
+    )
 
     # --------------------------------------------------
-    # 4. ADD WOUND-LIKE COLOR INFORMATION
+    # 6. ADD WOUND-LIKE COLOR INFORMATION
     # --------------------------------------------------
 
     lab = cv2.cvtColor(
         image,
-        cv2.COLOR_BGR2LAB
+        cv2.COLOR_BGR2LAB,
     )
 
-    a_channel = lab[:, :, 1]
+    a_channel = (
+        lab[:, :, 1]
+    )
 
-    redness_threshold = np.percentile(
-        a_channel,
-        75
+    redness_threshold = (
+        np.percentile(
+            a_channel,
+            75,
+        )
     )
 
     redness_mask = np.zeros(
-        (height, width),
-        dtype=np.uint8
+        (
+            height,
+            width,
+        ),
+        dtype=np.uint8,
     )
 
     redness_mask[
-        a_channel >= redness_threshold
+        a_channel
+        >= redness_threshold
     ] = 255
 
-    # Only keep GrabCut foreground that also has
-    # reasonably wound-like redness.
-    combined_mask = cv2.bitwise_and(
-        binary_mask,
-        redness_mask
+    combined_mask = (
+        cv2.bitwise_and(
+            binary_mask,
+            redness_mask,
+        )
     )
 
     # --------------------------------------------------
-    # 5. CLEAN THE MASK
+    # 7. CLEAN THE MASK
     # --------------------------------------------------
 
     kernel_small = np.ones(
-        (3, 3),
-        np.uint8
+        (
+            3,
+            3,
+        ),
+        np.uint8,
     )
 
     kernel_large = np.ones(
-        (9, 9),
-        np.uint8
+        (
+            9,
+            9,
+        ),
+        np.uint8,
     )
 
-    combined_mask = cv2.morphologyEx(
-        combined_mask,
-        cv2.MORPH_OPEN,
-        kernel_small
+    combined_mask = (
+        cv2.morphologyEx(
+            combined_mask,
+            cv2.MORPH_OPEN,
+            kernel_small,
+        )
     )
 
-    combined_mask = cv2.morphologyEx(
-        combined_mask,
-        cv2.MORPH_CLOSE,
-        kernel_large
+    combined_mask = (
+        cv2.morphologyEx(
+            combined_mask,
+            cv2.MORPH_CLOSE,
+            kernel_large,
+        )
     )
 
     # --------------------------------------------------
-    # 6. FIND CONNECTED REGIONS
+    # 8. FIND CONNECTED REGIONS
     # --------------------------------------------------
 
-    contours, _ = cv2.findContours(
-        combined_mask,
-        cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE
+    contours, _ = (
+        cv2.findContours(
+            combined_mask,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE,
+        )
     )
 
     print(
-        f"WOUND ANALYSIS: {len(contours)} contours found"
+        "WOUND ANALYSIS: "
+        f"{len(contours)} "
+        "contours found"
     )
 
     if not contours:
@@ -201,28 +331,38 @@ def analyze_wound_image(image_path):
         height * width
     )
 
-    center_x = width / 2.0
-    center_y = height / 2.0
+    center_x = (
+        width / 2.0
+    )
+
+    center_y = (
+        height / 2.0
+    )
 
     candidates = []
 
     for contour in contours:
-        area = cv2.contourArea(
-            contour
+        area = (
+            cv2.contourArea(
+                contour
+            )
         )
 
         if area < 100:
             continue
 
         area_ratio = (
-            area / image_area
+            area
+            / image_area
         )
 
         if area_ratio > 0.30:
             continue
 
-        moments = cv2.moments(
-            contour
+        moments = (
+            cv2.moments(
+                contour
+            )
         )
 
         if moments["m00"] == 0:
@@ -238,16 +378,28 @@ def analyze_wound_image(image_path):
             / moments["m00"]
         )
 
-        distance_from_center = np.sqrt(
-            (contour_x - center_x) ** 2
-            +
-            (contour_y - center_y) ** 2
+        distance_from_center = (
+            np.sqrt(
+                (
+                    contour_x
+                    - center_x
+                )
+                ** 2
+                +
+                (
+                    contour_y
+                    - center_y
+                )
+                ** 2
+            )
         )
 
-        maximum_distance = np.sqrt(
-            center_x ** 2
-            +
-            center_y ** 2
+        maximum_distance = (
+            np.sqrt(
+                center_x ** 2
+                +
+                center_y ** 2
+            )
         )
 
         centrality = max(
@@ -256,115 +408,195 @@ def analyze_wound_image(image_path):
             - (
                 distance_from_center
                 / maximum_distance
-            )
+            ),
         )
 
-        # Score favors:
-        # - reasonable size
-        # - closeness to image center
         score = (
             area
-            *
-            (0.5 + centrality)
+            * (
+                0.5
+                + centrality
+            )
         )
 
         print(
             "Candidate:",
             "area =",
-            round(area, 1),
+            round(
+                area,
+                1,
+            ),
             "ratio =",
-            round(area_ratio, 3),
+            round(
+                area_ratio,
+                3,
+            ),
             "centrality =",
-            round(centrality, 3),
+            round(
+                centrality,
+                3,
+            ),
             "score =",
-            round(score, 1)
+            round(
+                score,
+                1,
+            ),
         )
 
         candidates.append(
             {
-                "contour": contour,
-                "area": area,
-                "score": score,
+                "contour":
+                    contour,
+
+                "area":
+                    area,
+
+                "score":
+                    score,
             }
         )
 
     if not candidates:
         print(
             "WOUND ANALYSIS: "
-            "No valid GrabCut wound candidate."
+            "No valid GrabCut "
+            "wound candidate."
         )
+
         return failed_result()
 
     # --------------------------------------------------
-    # 7. SELECT BEST REGION
+    # 9. SELECT BEST REGION
     # --------------------------------------------------
 
     best_candidate = max(
         candidates,
-        key=lambda item: item["score"]
+        key=lambda item:
+            item["score"],
     )
 
     wound_contour = (
-        best_candidate["contour"]
+        best_candidate[
+            "contour"
+        ]
     )
 
-    wound_area_pixels = (
-        best_candidate["area"]
+    processed_area = (
+        best_candidate[
+            "area"
+        ]
+    )
+
+    # --------------------------------------------------
+    # 10. SCALE AREA BACK TO ORIGINAL IMAGE SIZE
+    # --------------------------------------------------
+
+    if scale < 1.0:
+        wound_area_pixels = (
+            processed_area
+            / (
+                scale ** 2
+            )
+        )
+
+    else:
+        wound_area_pixels = (
+            processed_area
+        )
+
+    print(
+        "WOUND ANALYSIS: "
+        "selected processed area =",
+        processed_area,
+        "pixels"
     )
 
     print(
-        "WOUND ANALYSIS: selected wound area =",
+        "WOUND ANALYSIS: "
+        "estimated original area =",
         wound_area_pixels,
         "pixels"
     )
 
     # --------------------------------------------------
-    # 8. CREATE FINAL MASK
+    # 11. CREATE FINAL MASK
     # --------------------------------------------------
 
     final_mask = np.zeros(
-        (height, width),
-        dtype=np.uint8
+        (
+            height,
+            width,
+        ),
+        dtype=np.uint8,
     )
 
     cv2.drawContours(
         final_mask,
-        [wound_contour],
+        [
+            wound_contour
+        ],
         -1,
         255,
-        thickness=-1
+        thickness=-1,
     )
 
     # --------------------------------------------------
-    # 9. SAVE MASK
+    # 12. RESIZE MASK BACK TO ORIGINAL IMAGE SIZE
     # --------------------------------------------------
 
-    image_directory = os.path.dirname(
-        image_path
+    if scale < 1.0:
+        final_mask = (
+            cv2.resize(
+                final_mask,
+                (
+                    original_width,
+                    original_height,
+                ),
+                interpolation=(
+                    cv2.INTER_NEAREST
+                ),
+            )
+        )
+
+    # --------------------------------------------------
+    # 13. SAVE MASK
+    # --------------------------------------------------
+
+    image_directory = (
+        os.path.dirname(
+            image_path
+        )
     )
 
-    media_directory = os.path.dirname(
-        image_directory
+    media_directory = (
+        os.path.dirname(
+            image_directory
+        )
     )
 
-    mask_directory = os.path.join(
-        media_directory,
-        "wound_masks"
+    mask_directory = (
+        os.path.join(
+            media_directory,
+            "wound_masks",
+        )
     )
 
     os.makedirs(
         mask_directory,
-        exist_ok=True
+        exist_ok=True,
     )
 
-    original_filename = os.path.basename(
-        image_path
-    )
-
-    filename_without_extension, _ = (
-        os.path.splitext(
-            original_filename
+    original_filename = (
+        os.path.basename(
+            image_path
         )
+    )
+
+    (
+        filename_without_extension,
+        _,
+    ) = os.path.splitext(
+        original_filename
     )
 
     mask_filename = (
@@ -372,43 +604,53 @@ def analyze_wound_image(image_path):
         f"_mask.png"
     )
 
-    mask_full_path = os.path.join(
-        mask_directory,
-        mask_filename
+    mask_full_path = (
+        os.path.join(
+            mask_directory,
+            mask_filename,
+        )
     )
 
     saved = cv2.imwrite(
         mask_full_path,
-        final_mask
+        final_mask,
     )
 
     if not saved:
         print(
             "WOUND ANALYSIS: "
-            "Could not save wound mask."
+            "Could not save "
+            "wound mask."
         )
+
         return failed_result()
 
     # --------------------------------------------------
-    # 10. RETURN RESULT
+    # 14. RETURN RESULT
     # --------------------------------------------------
 
     return {
-        "status": "COMPLETED",
+        "status":
+            "COMPLETED",
 
-        "wound_area_pixels": float(
-            wound_area_pixels
-        ),
+        "wound_area_pixels":
+            float(
+                wound_area_pixels
+            ),
 
         # Still no physical calibration.
-        "wound_area": None,
+        "wound_area":
+            None,
 
-        "confidence": None,
+        "confidence":
+            None,
 
-        "model_version": MODEL_VERSION,
+        "model_version":
+            MODEL_VERSION,
 
-        "mask_path": (
-            f"wound_masks/"
-            f"{mask_filename}"
-        ),
+        "mask_path":
+            (
+                "wound_masks/"
+                f"{mask_filename}"
+            ),
     }
