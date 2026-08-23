@@ -270,7 +270,7 @@ if R2_ENABLED:
                 "region_name":
                     "auto",
 
-                # Keep medical images private.
+                # Keep wound images private.
                 "default_acl":
                     None,
 
@@ -283,10 +283,11 @@ if R2_ENABLED:
                 "querystring_expire":
                     3600,
 
-                # Do not silently overwrite
-                # existing wound photographs.
+                # IMPORTANT:
+                # Avoid the filename-availability check
+                # that causes HeadObject before upload.
                 "file_overwrite":
-                    False,
+                    True,
 
                 "signature_version":
                     "s3v4",
