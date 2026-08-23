@@ -17,6 +17,7 @@ def failed_result():
         "confidence": None,
         "model_version": MODEL_VERSION,
         "mask_path": None,
+        "mask_full_path": None,
     }
 
 
@@ -33,7 +34,7 @@ def analyze_wound_image(image_path):
     4. Use GrabCut to separate foreground from background.
     5. Clean the result.
     6. Keep the most plausible connected wound region.
-    7. Save the mask.
+    7. Save the mask temporarily.
     8. Return estimated raw pixel area.
 
     Real cm² measurement still requires calibration.
@@ -43,11 +44,14 @@ def analyze_wound_image(image_path):
     # 1. LOAD IMAGE
     # --------------------------------------------------
 
-    image = cv2.imread(image_path)
+    image = cv2.imread(
+        image_path
+    )
 
     if image is None:
         print(
-            "WOUND ANALYSIS: Could not read image."
+            "WOUND ANALYSIS: "
+            "Could not read image."
         )
 
         return failed_result()
@@ -559,7 +563,13 @@ def analyze_wound_image(image_path):
         )
 
     # --------------------------------------------------
-    # 13. SAVE MASK
+    # 13. SAVE TEMPORARY MASK
+    # --------------------------------------------------
+    #
+    # This mask is written to a local temporary folder.
+    # views.py will upload it through Django storage,
+    # which means R2 on Render or local media storage
+    # during development.
     # --------------------------------------------------
 
     image_directory = (
@@ -568,15 +578,9 @@ def analyze_wound_image(image_path):
         )
     )
 
-    media_directory = (
-        os.path.dirname(
-            image_directory
-        )
-    )
-
     mask_directory = (
         os.path.join(
-            media_directory,
+            image_directory,
             "wound_masks",
         )
     )
@@ -653,4 +657,10 @@ def analyze_wound_image(image_path):
                 "wound_masks/"
                 f"{mask_filename}"
             ),
+
+        # Temporary local path used by views.py
+        # to upload the generated mask through
+        # Django storage, including Cloudflare R2.
+        "mask_full_path":
+            mask_full_path,
     }

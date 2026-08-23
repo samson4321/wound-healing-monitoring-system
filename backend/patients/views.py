@@ -1,3 +1,7 @@
+import os
+import tempfile
+
+from django.core.files import File
 from django.utils import timezone
 
 from rest_framework import generics, status
@@ -31,9 +35,40 @@ class WoundAssessmentListCreateView(
     def perform_create(self, serializer):
         assessment = serializer.save()
 
-        if assessment.wound_image:
+        if not assessment.wound_image:
+            return
+
+        temp_input_path = None
+        temp_mask_path = None
+
+        try:
+            # ------------------------------------------
+            # COPY STORED IMAGE TO TEMPORARY LOCAL FILE
+            # ------------------------------------------
+
+            suffix = os.path.splitext(
+                assessment.wound_image.name
+            )[1]
+
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=suffix or ".jpg"
+            ) as temp_input:
+                assessment.wound_image.open("rb")
+
+                for chunk in assessment.wound_image.chunks():
+                    temp_input.write(chunk)
+
+                temp_input_path = temp_input.name
+
+            assessment.wound_image.close()
+
+            # ------------------------------------------
+            # RUN IMAGE ANALYSIS
+            # ------------------------------------------
+
             result = analyze_wound_image(
-                assessment.wound_image.path
+                temp_input_path
             )
 
             assessment.analysis_status = result[
@@ -44,7 +79,6 @@ class WoundAssessmentListCreateView(
                 "wound_area_pixels"
             ]
 
-            # Record how this measurement was obtained
             if (
                 result["wound_area_pixels"]
                 is not None
@@ -65,10 +99,37 @@ class WoundAssessmentListCreateView(
                 "model_version"
             ]
 
-            if result["mask_path"]:
-                assessment.wound_mask = result[
-                    "mask_path"
-                ]
+            # ------------------------------------------
+            # SAVE GENERATED MASK USING DJANGO STORAGE
+            # ------------------------------------------
+
+            temp_mask_path = result.get(
+                "mask_full_path"
+            )
+
+            if (
+                temp_mask_path
+                and os.path.exists(
+                    temp_mask_path
+                )
+            ):
+                mask_filename = os.path.basename(
+                    temp_mask_path
+                )
+
+                with open(
+                    temp_mask_path,
+                    "rb"
+                ) as mask_file:
+                    assessment.wound_mask.save(
+                        mask_filename,
+                        File(mask_file),
+                        save=False
+                    )
+
+            # ------------------------------------------
+            # SAVE ANALYSIS RESULT
+            # ------------------------------------------
 
             assessment.save(
                 update_fields=[
@@ -81,6 +142,35 @@ class WoundAssessmentListCreateView(
                     "wound_mask",
                 ]
             )
+
+        finally:
+            # ------------------------------------------
+            # DELETE TEMPORARY INPUT IMAGE
+            # ------------------------------------------
+
+            if (
+                temp_input_path
+                and os.path.exists(
+                    temp_input_path
+                )
+            ):
+                os.remove(
+                    temp_input_path
+                )
+
+            # ------------------------------------------
+            # DELETE TEMPORARY GENERATED MASK
+            # ------------------------------------------
+
+            if (
+                temp_mask_path
+                and os.path.exists(
+                    temp_mask_path
+                )
+            ):
+                os.remove(
+                    temp_mask_path
+                )
 
 
 # Read one assessment.
