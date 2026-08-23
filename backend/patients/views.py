@@ -1,3 +1,4 @@
+import logging
 import os
 import tempfile
 
@@ -15,6 +16,9 @@ from .serializers import (
     WoundAssessmentSerializer,
 )
 from .wound_analysis import analyze_wound_image
+
+
+logger = logging.getLogger(__name__)
 
 
 class PatientListCreateView(
@@ -54,14 +58,27 @@ class WoundAssessmentListCreateView(
                 delete=False,
                 suffix=suffix or ".jpg"
             ) as temp_input:
+
                 assessment.wound_image.open("rb")
 
-                for chunk in assessment.wound_image.chunks():
-                    temp_input.write(chunk)
+                for chunk in (
+                    assessment.wound_image.chunks()
+                ):
+                    temp_input.write(
+                        chunk
+                    )
 
-                temp_input_path = temp_input.name
+                temp_input_path = (
+                    temp_input.name
+                )
 
             assessment.wound_image.close()
+
+            logger.info(
+                "WOUND ASSESSMENT: "
+                "temporary input file created: %s",
+                temp_input_path,
+            )
 
             # ------------------------------------------
             # RUN IMAGE ANALYSIS
@@ -71,13 +88,19 @@ class WoundAssessmentListCreateView(
                 temp_input_path
             )
 
-            assessment.analysis_status = result[
-                "status"
-            ]
+            logger.info(
+                "WOUND ASSESSMENT: "
+                "analysis result status = %s",
+                result.get("status"),
+            )
 
-            assessment.wound_area_pixels = result[
-                "wound_area_pixels"
-            ]
+            assessment.analysis_status = (
+                result["status"]
+            )
+
+            assessment.wound_area_pixels = (
+                result["wound_area_pixels"]
+            )
 
             if (
                 result["wound_area_pixels"]
@@ -87,17 +110,17 @@ class WoundAssessmentListCreateView(
                     "SEGMENTATION_PIXELS"
                 )
 
-            assessment.wound_area = result[
-                "wound_area"
-            ]
+            assessment.wound_area = (
+                result["wound_area"]
+            )
 
-            assessment.analysis_confidence = result[
-                "confidence"
-            ]
+            assessment.analysis_confidence = (
+                result["confidence"]
+            )
 
-            assessment.model_version = result[
-                "model_version"
-            ]
+            assessment.model_version = (
+                result["model_version"]
+            )
 
             # ------------------------------------------
             # SAVE GENERATED MASK USING DJANGO STORAGE
@@ -113,18 +136,27 @@ class WoundAssessmentListCreateView(
                     temp_mask_path
                 )
             ):
-                mask_filename = os.path.basename(
-                    temp_mask_path
+                mask_filename = (
+                    os.path.basename(
+                        temp_mask_path
+                    )
+                )
+
+                logger.info(
+                    "WOUND ASSESSMENT: "
+                    "saving mask through Django storage: %s",
+                    mask_filename,
                 )
 
                 with open(
                     temp_mask_path,
                     "rb"
                 ) as mask_file:
+
                     assessment.wound_mask.save(
                         mask_filename,
                         File(mask_file),
-                        save=False
+                        save=False,
                     )
 
             # ------------------------------------------
@@ -142,6 +174,26 @@ class WoundAssessmentListCreateView(
                     "wound_mask",
                 ]
             )
+
+            logger.info(
+                "WOUND ASSESSMENT: "
+                "assessment %s saved successfully",
+                assessment.pk,
+            )
+
+        except Exception:
+            # ------------------------------------------
+            # IMPORTANT:
+            # PRINT FULL ERROR TO RENDER LOGS
+            # ------------------------------------------
+
+            logger.exception(
+                "WOUND ASSESSMENT CREATE FAILED "
+                "for assessment id=%s",
+                assessment.pk,
+            )
+
+            raise
 
         finally:
             # ------------------------------------------
@@ -184,83 +236,119 @@ class WoundAssessmentDetailView(
 
 
 # Doctor-only review endpoint
-class WoundAssessmentReviewView(APIView):
-    permission_classes = [IsAuthenticated]
+class WoundAssessmentReviewView(
+    APIView
+):
+    permission_classes = [
+        IsAuthenticated
+    ]
 
-    def patch(self, request, pk):
+    def patch(
+        self,
+        request,
+        pk
+    ):
         user = request.user
 
-        # --------------------------------------------------
+        # ------------------------------------------
         # CHECK DOCTOR ROLE
-        # --------------------------------------------------
+        # ------------------------------------------
 
         if user.is_superuser:
             role = "ADMIN"
+
         else:
             try:
-                role = user.staff_profile.role
+                role = (
+                    user.staff_profile.role
+                )
+
             except Exception:
                 return Response(
                     {
                         "message":
-                        "No staff profile is associated with this account."
+                            "No staff profile is "
+                            "associated with this "
+                            "account."
                     },
-                    status=status.HTTP_403_FORBIDDEN
+                    status=(
+                        status.HTTP_403_FORBIDDEN
+                    ),
                 )
 
         if role != "DOCTOR":
             return Response(
                 {
                     "message":
-                    "Only doctors can review wound assessments."
+                        "Only doctors can review "
+                        "wound assessments."
                 },
-                status=status.HTTP_403_FORBIDDEN
+                status=(
+                    status.HTTP_403_FORBIDDEN
+                ),
             )
 
-        # --------------------------------------------------
+        # ------------------------------------------
         # FIND ASSESSMENT
-        # --------------------------------------------------
+        # ------------------------------------------
 
         try:
-            assessment = WoundAssessment.objects.get(
-                pk=pk
+            assessment = (
+                WoundAssessment.objects.get(
+                    pk=pk
+                )
             )
-        except WoundAssessment.DoesNotExist:
+
+        except (
+            WoundAssessment.DoesNotExist
+        ):
             return Response(
                 {
                     "message":
-                    "Assessment not found."
+                        "Assessment not found."
                 },
-                status=status.HTTP_404_NOT_FOUND
+                status=(
+                    status.HTTP_404_NOT_FOUND
+                ),
             )
 
-        # --------------------------------------------------
+        # ------------------------------------------
         # GET DOCTOR COMMENT
-        # --------------------------------------------------
+        # ------------------------------------------
 
-        doctor_comment = request.data.get(
-            "doctor_comment",
-            ""
-        ).strip()
+        doctor_comment = (
+            request.data.get(
+                "doctor_comment",
+                ""
+            ).strip()
+        )
 
         if not doctor_comment:
             return Response(
                 {
                     "message":
-                    "Doctor comment is required."
+                        "Doctor comment is required."
                 },
-                status=status.HTTP_400_BAD_REQUEST
+                status=(
+                    status.HTTP_400_BAD_REQUEST
+                ),
             )
 
-        # --------------------------------------------------
+        # ------------------------------------------
         # SAVE REVIEW
-        # --------------------------------------------------
+        # ------------------------------------------
 
-        assessment.doctor_comment = doctor_comment
+        assessment.doctor_comment = (
+            doctor_comment
+        )
 
-        assessment.review_status = "REVIEWED"
+        assessment.review_status = (
+            "REVIEWED"
+        )
 
-        assessment.reviewed_at = timezone.now()
+        assessment.reviewed_at = (
+            timezone.now()
+        )
 
         assessment.reviewed_by = (
             user.get_full_name().strip()
@@ -276,18 +364,20 @@ class WoundAssessmentReviewView(APIView):
             ]
         )
 
-        # --------------------------------------------------
+        # ------------------------------------------
         # RETURN UPDATED ASSESSMENT
-        # --------------------------------------------------
+        # ------------------------------------------
 
-        serializer = WoundAssessmentSerializer(
-            assessment,
-            context={
-                "request": request
-            }
+        serializer = (
+            WoundAssessmentSerializer(
+                assessment,
+                context={
+                    "request": request
+                },
+            )
         )
 
         return Response(
             serializer.data,
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
